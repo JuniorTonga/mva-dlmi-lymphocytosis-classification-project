@@ -16,7 +16,9 @@ class ImageLabelDataset(Dataset):
         self.labels = labels
 
     def __getitem__(self, index):
-        return self.images[index], self.labels[index]
+        image_path = self.images[index]
+        image = image_to_numpy(image_path)
+        return image, self.labels[index]
 
     def __len__(self):
         return len(self.labels)
@@ -28,10 +30,18 @@ class ImageDataset(Dataset):
         self.images = images
 
     def __getitem__(self, index):
-        return self.images[index]
+        image_path = self.images[index]
+        image = image_to_numpy(image_path)
+        return image
 
     def __len__(self):
         return len(self.images)
+
+
+def image_to_numpy(image_path):
+    image_pil = Image.open(image_path)
+    image_np = np.array(image_pil)
+    return image_np
 
 
 def load_images(split_dir):
@@ -44,9 +54,7 @@ def load_images(split_dir):
 
         p_images = []
         for image_path in os.listdir(p_dir):
-            image_pil = Image.open(os.path.join(p_dir, image_path))
-            image_array = np.array(image_pil).tolist()
-            p_images.append(image_array)
+            p_images.append(os.path.join(p_dir, image_path))
 
         images[p] = p_images
     return images
@@ -62,3 +70,8 @@ def assign_labels(images_dict, labels_dict):
 
     return images, labels
 
+
+def predict(model, p_dataloader):
+    y_pred = []
+    for X in p_dataloader:
+        pass
