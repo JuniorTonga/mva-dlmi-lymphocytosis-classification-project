@@ -69,11 +69,9 @@ def load_images(split_dir):
 def assign_labels(images_dict, labels_dict):
     images = []
     labels = []
-
     for p, p_images in images_dict.items():
         images.extend(p_images)
         labels.extend([labels_dict[p]] * len(p_images))
-
     return images, labels
 
 
@@ -87,3 +85,13 @@ def predict(model, p_dataloader, device):
             pred = F.softmax(logits, dim=-1).argmax(dim=-1)
             y_pred.extend(pred.cpu().detach().numpy().tolist())
     return int(np.mean(y_pred) > .5)
+
+
+def predict_all(model, images_dict, transform_function, batch_size, device):
+    y_pred = []
+    for p, p_images in images_dict.items():
+        p_dataset = ImageDataset(p_images, transform_function)
+        p_dataloader = DataLoader(p_dataset, batch_size=batch_size, shuffle=False)
+        y = predict(model, p_dataloader, device)
+        y_pred.append(y)
+    return np.array(y_pred)
