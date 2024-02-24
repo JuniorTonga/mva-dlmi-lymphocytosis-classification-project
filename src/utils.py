@@ -3,6 +3,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from PIL import Image
+
+
+def image_to_numpy(image_path):
+    image_pil = Image.open(image_path)
+    image_np = np.array(image_pil, dtype=np.float32) / 255.0
+    return image_np
+
 
 def test(model, loss_fn, dataloader, device):
     size = len(dataloader.dataset)
