@@ -123,12 +123,19 @@ def assign_labels(images_dict, labels_dict):
     return images, labels
 
 
-def predict(model, p_dataloader, prediction_aggregator, device):
+def predict(
+        model, 
+        image_encoder, 
+        p_dataloader, 
+        prediction_aggregator, 
+        device
+    ):
     y_pred = []
     model.eval()
     with torch.no_grad():
         for X in p_dataloader:
             X = torch.FloatTensor(X).to(device)
+            X = image_encoder(X)
             logits = model(X)
             pred = F.softmax(logits, dim=-1).argmax(dim=-1)
             y_pred.extend(pred.cpu().detach().numpy().tolist())
@@ -139,17 +146,25 @@ def predict(model, p_dataloader, prediction_aggregator, device):
     return int(np.mean(y_pred) > .5) # MEAN
 
 
-def predict_all(model, images_dict, transform_function, batch_size, prediction_aggregator, device):
+def predict_all(
+        model, 
+        image_encoder, 
+        images_dict, 
+        transform_function, 
+        batch_size, 
+        prediction_aggregator, 
+        device
+    ):
     y_pred = []
     for p, p_images in images_dict.items():
         p_dataset = ImageDataset(p_images, transform_function)
         p_dataloader = DataLoader(p_dataset, batch_size=batch_size, shuffle=False)
-        y = predict(model, p_dataloader, prediction_aggregator, device)
+        y = predict(model, image_encoder, p_dataloader, prediction_aggregator, device)
         y_pred.append(y)
     return np.array(y_pred)
 
 
-def test(model, loss_fn, dataloader, device):
+def test(model, image_encoder, loss_fn, dataloader, device):
     num_batches = len(dataloader)
     model.eval()
     test_loss = 0
@@ -158,6 +173,7 @@ def test(model, loss_fn, dataloader, device):
         for X, y in dataloader:
             X = torch.FloatTensor(X).to(device)
             y = torch.LongTensor(y).to(device)
+            X = image_encoder(X)
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
             #accuracy += (pred.argmax(1) == y).type(torch.float).sum().item()
@@ -169,7 +185,7 @@ def test(model, loss_fn, dataloader, device):
     return test_loss, acc, bacc
 
 
-def train(model, optimizer, loss_fn, dataloader, device):
+def train(model, image_encoder, optimizer, loss_fn, dataloader, device):
     num_batches = len(dataloader)
     model.train()
     train_loss = 0
@@ -177,6 +193,8 @@ def train(model, optimizer, loss_fn, dataloader, device):
     for X, y in dataloader:
         X = torch.FloatTensor(X).to(device)
         y = torch.LongTensor(y).to(device)
+        with torch.no_grad():
+            X = image_encoder(X)
         pred = model(X)
         loss = loss_fn(pred, y)
         loss.backward()
@@ -194,6 +212,7 @@ def train(model, optimizer, loss_fn, dataloader, device):
 
 def trainer(
         model, 
+        image_encoder,
         optimizer, 
         loss_fn, 
         train_dataloader, 
@@ -208,8 +227,8 @@ def trainer(
     test_losses, test_accuracies, test_bal_accuracies = [], [], []
 
     for epoch in range(1, n_epochs + 1):
-        train_loss, train_acc, train_bacc = train(model, optimizer, loss_fn, train_dataloader, device)
-        test_loss, test_acc, test_bacc = test(model, loss_fn, test_dataloader, device)
+        train_loss, train_acc, train_bacc = train(model, image_encoder, optimizer, loss_fn, train_dataloader, device)
+        test_loss, test_acc, test_bacc = test(model, image_encoder, loss_fn, test_dataloader, device)
 
         train_losses.append(train_loss)
         train_accuracies.append(train_acc)
